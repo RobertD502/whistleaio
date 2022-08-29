@@ -17,6 +17,7 @@ setuptools.setup(
     python_requires= ">=3.7",
     install_requires=[
         "aiohttp>=3.8.1",
+        "strenum>=0.4.8",
     ],
     classifiers=(
         "Programming Language :: Python :: 3",
