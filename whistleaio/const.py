@@ -11,6 +11,7 @@ class Endpoint(StrEnum):
     BASE_URL = 'https://app.whistle.com/api'
     DAILIES = '/dailies'
     DEVICES = '/devices'
+    HEALTH = '/health/trends'
     LOGIN = '/login'
     PETS = '/pets'
     PLACES= '/places'
