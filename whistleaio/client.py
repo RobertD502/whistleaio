@@ -6,11 +6,11 @@ from typing import Any
 import asyncio
 from aiohttp import ClientResponse, ClientSession
 
-from .const import Endpoint, Header, TIMEOUT
+from whistleaio.const import Endpoint, Header, TIMEOUT
 
-from .exceptions import WhistleAuthError
+from whistleaio.exceptions import WhistleAuthError, WhistleError
 
-from .model import WhistleData, Pet
+from whistleaio.model import WhistleData, Pet
 
 
 class WhistleClient:
@@ -66,9 +66,9 @@ class WhistleClient:
                     events=daily_item,
                     places=all_endpoints[2],
                     stats=all_endpoints[3],
+                    health=all_endpoints[4]
                 )
         return WhistleData(pets=pets_data)
-
 
     async def get_pets(self) -> dict[str, Any]:
         """ Get all pets. """
@@ -130,8 +130,17 @@ class WhistleClient:
         response = await self._get(endpoint=Endpoint.PLACES, header=header)
         return response
 
+    async def get_health_trends(self, pet_id: int) -> dict[str, Any]:
+        """Get all the health trends associated with a pet."""
 
-    async def fetch_all_endpoints(self, pet: dict[str, Any]) -> tuple:
+        if self.token is None:
+            await self.get_token()
+        header = await self.create_header()
+        endpoint = f'{Endpoint.PETS}/{pet_id}{Endpoint.HEALTH}'
+        response = await self._get(endpoint=endpoint, header=header)
+        return response
+
+    async def fetch_all_endpoints(self, pet: dict[str, Any]) -> list:
         """Parallel request are made to all endpoints needed to
         get data for device, dailies, places, and stats of the Pet Object.
         """
@@ -140,7 +149,8 @@ class WhistleClient:
             self.get_device_data(pet['device']['serial_number']),
             self.get_dailies(pet['id']),
             self.get_places(),
-            self.get_stats(pet['id'])
+            self.get_stats(pet['id']),
+            self.get_health_trends(pet['id'])
             ],
         )
         return results
@@ -160,28 +170,30 @@ class WhistleClient:
         }
         return header
 
-
     async def _post(self, endpoint: str, header: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         """ Make POST call to Whistle servers. """
 
         async with self._session.post(
-                url=f'{Endpoint.BASE_URL}{endpoint}', headers=header,
+            url=f'{Endpoint.BASE_URL}{endpoint}', headers=header,
                 data=data, timeout=self.timeout) as resp:
-                return await self._response(resp)
+            return await self._response(resp)
 
     async def _get(self, endpoint: str, header: dict[str, Any]) -> dict[str, Any]:
         """ Make GET call to Whistle servers. """
 
         async with self._session.get(
-                url=f'{Endpoint.BASE_URL}{endpoint}', headers=header,
+            url=f'{Endpoint.BASE_URL}{endpoint}', headers=header,
                 timeout=self.timeout) as resp:
-                return await self._response(resp)
+            return await self._response(resp)
 
     @staticmethod
     async def _response(resp: ClientResponse) -> dict[str, Any] | None:
         """ Check response for any errors & return original response if none """
 
-        response: dict[str, Any] = await resp.json()
+        try:
+            response: dict[str, Any] = await resp.json()
+        except Exception as ex:
+            raise WhistleError(ex)
         if resp.status == 422:
             if response['errors'][0]['message'] == 'Invalid email address or password':
                 raise WhistleAuthError('Invalid email address or password')

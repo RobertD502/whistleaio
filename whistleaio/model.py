@@ -25,4 +25,5 @@ class Pet:
     events: dict[str, Any] | None
     places: list[dict]
     stats: dict[str, Any]
+    health: dict[str, Any]
 
