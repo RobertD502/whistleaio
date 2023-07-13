@@ -5,6 +5,7 @@ from typing import Any
 
 import asyncio
 from aiohttp import ClientResponse, ClientSession
+from aiohttp.client_exceptions import ContentTypeError
 
 from whistleaio.const import Endpoint, Header, TIMEOUT
 
@@ -192,8 +193,8 @@ class WhistleClient:
 
         try:
             response: dict[str, Any] = await resp.json()
-        except Exception as ex:
-            raise WhistleError(ex)
+        except ContentTypeError as cte:
+            raise WhistleError(f'Whistle servers failed to return data for endpoint {resp.url}')
         if resp.status == 422:
             if response['errors'][0]['message'] == 'Invalid email address or password':
                 raise WhistleAuthError('Invalid email address or password')
